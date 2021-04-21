@@ -26,6 +26,8 @@ inputs:
   issue-number:
     description: 'The issue or pull request number to associate with the card.'
     default: ${{ github.event.issue.number }}
+  skip-update:
+    description: 'Skip update of the card if it is already in the project board.'
 outputs:
   card-id:
     description: 'The ID of the card.'

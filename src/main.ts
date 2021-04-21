@@ -164,6 +164,7 @@ async function run(): Promise<void> {
       columnName: core.getInput('column-name'),
       repository: core.getInput('repository'),
       issueNumber: Number(core.getInput('issue-number'))
+      skipUpdate: core.getInput('skip-update') || false
     }
     core.debug(`Inputs: ${inspect(inputs)}`)
 
@@ -205,7 +206,7 @@ async function run(): Promise<void> {
       )
       core.setOutput('card-id', existingCard.id)
 
-      if (existingCard.columnUrl != column.url) {
+      if (!skipUpdate && existingCard.columnUrl != column.url) {
         core.info(`Moving card to column '${inputs.columnName}'`)
         await octokit.projects.moveCard({
           card_id: existingCard.id,
