@@ -181,7 +181,8 @@ function run() {
                 projectName: core.getInput('project-name'),
                 columnName: core.getInput('column-name'),
                 repository: core.getInput('repository'),
-                issueNumber: Number(core.getInput('issue-number'))
+                issueNumber: Number(core.getInput('issue-number')),
+                skipUpdate: core.getInput('skip-update') || false
             };
             core.debug(`Inputs: ${util_1.inspect(inputs)}`);
             const octokit = github.getOctokit(inputs.token);
@@ -207,7 +208,7 @@ function run() {
                 core.debug(`Existing card: ${util_1.inspect(existingCard)}`);
                 core.info(`An existing card is already associated with ${content.type} #${inputs.issueNumber}`);
                 core.setOutput('card-id', existingCard.id);
-                if (existingCard.columnUrl != column.url) {
+                if (!inputs.skipUpdate && existingCard.columnUrl != column.url) {
                     core.info(`Moving card to column '${inputs.columnName}'`);
                     yield octokit.projects.moveCard({
                         card_id: existingCard.id,
@@ -227,8 +228,14 @@ function run() {
             }
         }
         catch (error) {
-            core.debug(util_1.inspect(error));
-            core.setFailed(error.message);
+            if (error.errors.find(e => e.message == "Project already has the associated issue")) {
+                core.debug("Project already has the associated issue, it's most probably awaiting triage.");
+                core.setOutput('card-id', null);
+            }
+            else {
+                core.debug(util_1.inspect(error));
+                core.setFailed(error.message);
+            }
         }
     });
 }

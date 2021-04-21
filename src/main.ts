@@ -163,7 +163,7 @@ async function run(): Promise<void> {
       projectName: core.getInput('project-name'),
       columnName: core.getInput('column-name'),
       repository: core.getInput('repository'),
-      issueNumber: Number(core.getInput('issue-number'))
+      issueNumber: Number(core.getInput('issue-number')),
       skipUpdate: core.getInput('skip-update') || false
     }
     core.debug(`Inputs: ${inspect(inputs)}`)
@@ -206,7 +206,7 @@ async function run(): Promise<void> {
       )
       core.setOutput('card-id', existingCard.id)
 
-      if (!skipUpdate && existingCard.columnUrl != column.url) {
+      if (!inputs.skipUpdate && existingCard.columnUrl != column.url) {
         core.info(`Moving card to column '${inputs.columnName}'`)
         await octokit.projects.moveCard({
           card_id: existingCard.id,
@@ -226,8 +226,13 @@ async function run(): Promise<void> {
       core.setOutput('card-id', card.id)
     }
   } catch (error) {
-    core.debug(inspect(error))
-    core.setFailed(error.message)
+    if (error.errors.find(e => e.message == "Project already has the associated issue")) {
+      core.debug("Project already has the associated issue, it's most probably awaiting triage.")
+      core.setOutput('card-id', null)
+    } else {
+      core.debug(inspect(error))
+      core.setFailed(error.message)
+    }
   }
 }
 
