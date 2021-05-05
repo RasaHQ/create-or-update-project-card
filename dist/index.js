@@ -46,6 +46,13 @@ class Project {
         this.id = id;
     }
 }
+class Column {
+    constructor(name, id, url) {
+        this.name = name;
+        this.id = id;
+        this.url = url;
+    }
+}
 class CardContent {
     constructor(id, url, type) {
         this.id = id;
@@ -114,6 +121,15 @@ function getProject(projects, projectNumber, projectName) {
         throw 'A valid input for project-number OR project-name must be supplied.';
     }
 }
+function getColumns(octokit, project) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const columns = yield octokit.paginate(octokit.projects.listColumns, {
+            project_id: project.id,
+            per_page: 100
+        });
+        return columns;
+    });
+}
 function getContent(octokit, repository, issueNumber) {
     return __awaiter(this, void 0, void 0, function* () {
         const [owner, repo] = repository.split('/');
@@ -171,6 +187,18 @@ function findCardInColumns(octokit, columns, contentUrl) {
         return undefined;
     });
 }
+function findCardInProjects(octokit, projects, contentUrl) {
+    return __awaiter(this, void 0, void 0, function* () {
+        for (const project of projects) {
+            const columns = yield getColumns(octokit, project);
+            const card = yield findCardInColumns(octokit, columns, contentUrl);
+            if (card) {
+                return card;
+            }
+        }
+        return undefined;
+    });
+}
 function run() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -192,10 +220,7 @@ function run() {
             core.debug(`Project: ${util_1.inspect(project)}`);
             if (!project)
                 throw 'No project matching the supplied inputs found.';
-            const columns = yield octokit.paginate(octokit.projects.listColumns, {
-                project_id: project.id,
-                per_page: 100
-            });
+            const columns = yield getColumns(octokit, project);
             core.debug(`Columns: ${util_1.inspect(columns)}`);
             const column = columns.find(column => column.name == inputs.columnName);
             core.debug(`Column: ${util_1.inspect(column)}`);
@@ -203,7 +228,11 @@ function run() {
                 throw 'No column matching the supplied input found.';
             const content = yield getContent(octokit, inputs.repository, inputs.issueNumber);
             core.debug(`Content: ${util_1.inspect(content)}`);
-            const existingCard = yield findCardInColumns(octokit, columns, content.url);
+            let existingCard = yield findCardInColumns(octokit, columns, content.url);
+            if (!existingCard) {
+                core.debug('Couldnt find card in project, trying all the projects');
+                existingCard = yield findCardInProjects(octokit, projects, content.url);
+            }
             if (existingCard) {
                 core.debug(`Existing card: ${util_1.inspect(existingCard)}`);
                 core.info(`An existing card is already associated with ${content.type} #${inputs.issueNumber}`);
@@ -228,7 +257,7 @@ function run() {
             }
         }
         catch (error) {
-            if (error.errors.find(e => e.message == "Project already has the associated issue")) {
+            if (error.errors.find(e => e.message == 'Project already has the associated issue')) {
                 core.debug("Project already has the associated issue, it's most probably awaiting triage.");
                 core.setOutput('card-id', null);
             }
