@@ -229,7 +229,7 @@ function run() {
             const content = yield getContent(octokit, inputs.repository, inputs.issueNumber);
             core.debug(`Content: ${util_1.inspect(content)}`);
             let existingCard = yield findCardInColumns(octokit, columns, content.url);
-            if (!existingCard) {
+            if (!existingCard && inputs.skipUpdate) {
                 core.debug('Couldnt find card in project, trying all the projects');
                 existingCard = yield findCardInProjects(octokit, projects, content.url);
             }

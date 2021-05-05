@@ -230,7 +230,7 @@ async function run(): Promise<void> {
     core.debug(`Content: ${inspect(content)}`)
 
     let existingCard = await findCardInColumns(octokit, columns, content.url)
-    if (!existingCard) {
+    if (!existingCard && inputs.skipUpdate) {
       core.debug('Couldnt find card in project, trying all the projects')
       existingCard = await findCardInProjects(octokit, projects, content.url)
     }
