@@ -13,6 +13,17 @@ class Project {
   }
 }
 
+class Column {
+  name: string
+  id: number
+  url: string
+  constructor(name: string, id: number, url: string) {
+    this.name = name
+    this.id = id
+    this.url = url
+  }
+}
+
 class CardContent {
   id: number
   url: string
@@ -87,6 +98,14 @@ function getProject(
   }
 }
 
+async function getColumns(octokit, project: Project): Promise<Column[]> {
+  const columns = await octokit.paginate(octokit.projects.listColumns, {
+    project_id: project.id,
+    per_page: 100
+  })
+  return columns
+}
+
 async function getContent(
   octokit,
   repository,
@@ -154,6 +173,21 @@ async function findCardInColumns(
   return undefined
 }
 
+async function findCardInProjects(
+  octokit,
+  projects,
+  contentUrl
+): Promise<Card | undefined> {
+  for (const project of projects) {
+    const columns = await getColumns(octokit, project)
+    const card = await findCardInColumns(octokit, columns, contentUrl)
+    if (card) {
+      return card
+    }
+  }
+  return undefined
+}
+
 async function run(): Promise<void> {
   try {
     const inputs = {
@@ -181,10 +215,7 @@ async function run(): Promise<void> {
     core.debug(`Project: ${inspect(project)}`)
     if (!project) throw 'No project matching the supplied inputs found.'
 
-    const columns = await octokit.paginate(octokit.projects.listColumns, {
-      project_id: project.id,
-      per_page: 100
-    })
+    const columns = await getColumns(octokit, project)
     core.debug(`Columns: ${inspect(columns)}`)
 
     const column = columns.find(column => column.name == inputs.columnName)
@@ -198,7 +229,11 @@ async function run(): Promise<void> {
     )
     core.debug(`Content: ${inspect(content)}`)
 
-    const existingCard = await findCardInColumns(octokit, columns, content.url)
+    let existingCard = await findCardInColumns(octokit, columns, content.url)
+    if (!existingCard && inputs.skipUpdate) {
+      core.debug('Couldnt find card in project, trying all the projects')
+      existingCard = await findCardInProjects(octokit, projects, content.url)
+    }
     if (existingCard) {
       core.debug(`Existing card: ${inspect(existingCard)}`)
       core.info(
@@ -226,8 +261,14 @@ async function run(): Promise<void> {
       core.setOutput('card-id', card.id)
     }
   } catch (error) {
-    if (error.errors.find(e => e.message == "Project already has the associated issue")) {
-      core.debug("Project already has the associated issue, it's most probably awaiting triage.")
+    if (
+      error.errors.find(
+        e => e.message == 'Project already has the associated issue'
+      )
+    ) {
+      core.debug(
+        "Project already has the associated issue, it's most probably awaiting triage."
+      )
       core.setOutput('card-id', null)
     } else {
       core.debug(inspect(error))
