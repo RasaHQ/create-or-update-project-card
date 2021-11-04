@@ -46,7 +46,7 @@ class Card {
 
 async function isOrg(octokit, owner): Promise<boolean> {
   try {
-    await octokit.orgs.get({
+    await octokit.rest.orgs.get({
       org: owner
     })
     return true
@@ -60,18 +60,18 @@ async function getProjects(octokit, projectLocation): Promise<Project[]> {
   const [owner, repo] = projectLocation.split('/')
   const projects = await (async () => {
     if (repo) {
-      return await octokit.paginate(octokit.projects.listForRepo, {
+      return await octokit.paginate(octokit.rest.projects.listForRepo, {
         owner: owner,
         repo: repo,
         per_page: 100
       })
     } else if (await isOrg(octokit, owner)) {
-      return await octokit.paginate(octokit.projects.listForOrg, {
+      return await octokit.paginate(octokit.rest.projects.listForOrg, {
         org: owner,
         per_page: 100
       })
     } else {
-      return await octokit.paginate(octokit.projects.listForUser, {
+      return await octokit.paginate(octokit.rest.projects.listForUser, {
         username: owner,
         per_page: 100
       })
@@ -112,7 +112,7 @@ async function getContent(
   issueNumber
 ): Promise<CardContent> {
   const [owner, repo] = repository.split('/')
-  const {data: issue} = await octokit.issues.get({
+  const {data: issue} = await octokit.rest.issues.get({
     owner: owner,
     repo: repo,
     issue_number: issueNumber
@@ -122,7 +122,7 @@ async function getContent(
     throw 'No issue or pull request matching the supplied input found.'
 
   if (issue['pull_request']) {
-    const {data: pull} = await octokit.pulls.get({
+    const {data: pull} = await octokit.rest.pulls.get({
       owner: owner,
       repo: repo,
       pull_number: issueNumber
@@ -140,7 +140,7 @@ async function findCardInColumn(
   page = 1
 ): Promise<Card | undefined> {
   const perPage = 100
-  const {data: cards} = await octokit.projects.listCards({
+  const {data: cards} = await octokit.rest.projects.listCards({
     column_id: columnId,
     per_page: perPage,
     page: page
@@ -243,7 +243,7 @@ async function run(): Promise<void> {
 
       if (!inputs.skipUpdate && existingCard.columnUrl != column.url) {
         core.info(`Moving card to column '${inputs.columnName}'`)
-        await octokit.projects.moveCard({
+        await octokit.rest.projects.moveCard({
           card_id: existingCard.id,
           position: 'top',
           column_id: column.id
@@ -253,7 +253,7 @@ async function run(): Promise<void> {
       core.info(
         `Creating card associated with ${content.type} #${inputs.issueNumber}`
       )
-      const {data: card} = await octokit.projects.createCard({
+      const {data: card} = await octokit.rest.projects.createCard({
         column_id: column.id,
         content_id: content.id,
         content_type: content.type
