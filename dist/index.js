@@ -122,7 +122,7 @@ function getProject(projects, projectNumber, projectName) {
 }
 function getColumns(octokit, project) {
     return __awaiter(this, void 0, void 0, function* () {
-        const columns = yield octokit.paginate(octokit.projects.listColumns, {
+        const columns = yield octokit.paginate(octokit.rest.projects.listColumns, {
             project_id: project.id,
             per_page: 100
         });

@@ -99,7 +99,7 @@ function getProject(
 }
 
 async function getColumns(octokit, project: Project): Promise<Column[]> {
-  const columns = await octokit.paginate(octokit.projects.listColumns, {
+  const columns = await octokit.paginate(octokit.rest.projects.listColumns, {
     project_id: project.id,
     per_page: 100
   })
